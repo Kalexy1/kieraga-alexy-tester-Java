@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ParkingService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">parking-system</a> &gt; <a href="index.source.html" class="el_package">com.parkit.parkingsystem.service</a> &gt; <span class="el_source">ParkingService.java</span></div><h1>ParkingService.java</h1><pre class="source lang-java linenums">package com.parkit.parkingsystem.service;
+
+import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.parkit.parkingsystem.constants.ParkingType;
+import com.parkit.parkingsystem.dao.ParkingSpotDAO;
+import com.parkit.parkingsystem.dao.TicketDAO;
+import com.parkit.parkingsystem.exception.CustomException;
+import com.parkit.parkingsystem.exception.CustomException.DatabaseException;
+import com.parkit.parkingsystem.exception.CustomException.FareCalculationException;
+import com.parkit.parkingsystem.exception.CustomException.ParkingSpotNotFoundException;
+import com.parkit.parkingsystem.exception.CustomException.ParkingSpotUpdateException;
+import com.parkit.parkingsystem.exception.CustomException.TicketNotFoundException;
+import com.parkit.parkingsystem.exception.CustomException.TicketSaveException;
+import com.parkit.parkingsystem.exception.CustomException.TicketUpdateException;
+import com.parkit.parkingsystem.model.ParkingSpot;
+import com.parkit.parkingsystem.model.Ticket;
+import com.parkit.parkingsystem.util.InputReaderUtil;
+
+/**
+ * Service class to handle parking operations.
+ */
+public class ParkingService {
+
+    private final InputReaderUtil inputReaderUtil;
+    private final ParkingSpotDAO parkingSpotDAO;
+    private final TicketDAO ticketDAO;
+    private final FareCalculatorService fareCalculatorService;
+
+    public static final String NULL_OR_EMPTY_REG_NUMBER_MSG = &quot;Vehicle registration number cannot be null or empty&quot;;
+    public static final String INVALID_REG_NUMBER_LENGTH_MSG = &quot;Vehicle registration number must be between 2 and 10 characters long&quot;;
+    public static final String PARKING_TYPE_NULL_MSG = &quot;Parking type cannot be null&quot;;
+    public static final String TICKET_NOT_FOUND_MSG = &quot;No ticket found for vehicle registration number: &quot;;
+    public static final String FARE_CALCULATION_ERROR_MSG = &quot;Unable to calculate fare&quot;;
+    public static final String TICKET_UPDATE_ERROR_MSG = &quot;Unable to update the ticket for ticket ID: &quot;;
+    public static final String PARKING_SPOT_UPDATE_ERROR_MSG = &quot;Unable to update parking spot availability for parking spot ID: &quot;;
+    public static final String DATABASE_ERROR_MSG = &quot;Database error: &quot;;
+    public static final String PARKING_SPOT_MISSING_ERROR_MSG = &quot;Parking spot information is missing for ticket ID: &quot;;
+
+    private static final int MIN_REG_NUMBER_LENGTH = 2;
+    private static final int MAX_REG_NUMBER_LENGTH = 10;
+
+<span class="fc" id="L46">    public ParkingService(InputReaderUtil inputReaderUtil, ParkingSpotDAO parkingSpotDAO, TicketDAO ticketDAO, FareCalculatorService fareCalculatorService) {</span>
+<span class="fc" id="L47">        this.inputReaderUtil = inputReaderUtil;</span>
+<span class="fc" id="L48">        this.parkingSpotDAO = parkingSpotDAO;</span>
+<span class="fc" id="L49">        this.ticketDAO = ticketDAO;</span>
+<span class="fc" id="L50">        this.fareCalculatorService = fareCalculatorService;</span>
+<span class="fc" id="L51">    }</span>
+    
+<span class="fc" id="L53">    private List&lt;ParkingSpot&gt; parkingSpots = new ArrayList&lt;&gt;();</span>
+
+    /**
+     * Adds a parking spot to the list of parking spots.
+     *
+     * @param spot The parking spot to be added
+     */
+    public void addParkingSpot(ParkingSpot spot) {
+<span class="fc" id="L61">        parkingSpots.add(spot);</span>
+<span class="fc" id="L62">    }</span>
+
+    /**
+     * Processes an incoming vehicle by assigning a parking spot and creating a new ticket.
+     *
+     * @param vehicleRegNumber Vehicle registration number
+     * @param parkingType Type of parking spot
+     * @throws ClassNotFoundException If class not found
+     * @throws DatabaseException If there is a database error
+     * @throws SQLException If there is an SQL error
+     * @throws ParkingSpotUpdateException If there is an error updating the parking spot
+     * @throws TicketSaveException If there is an error saving the ticket
+     */
+    public void processIncomingVehicle(String vehicleRegNumber, ParkingType parkingType) 
+            throws ParkingSpotUpdateException, TicketSaveException, DatabaseException, ClassNotFoundException, SQLException {
+        
+<span class="fc" id="L78">        validateVehicleRegistration(vehicleRegNumber);</span>
+        
+<span class="fc bfc" id="L80" title="All 2 branches covered.">        if (parkingType == null) {</span>
+<span class="fc" id="L81">            throw new IllegalArgumentException(PARKING_TYPE_NULL_MSG);</span>
+        }
+
+        ParkingSpot parkingSpot;
+        try {
+<span class="fc" id="L86">            parkingSpot = parkingSpotDAO.getNextAvailableSpot(parkingType);</span>
+<span class="fc" id="L87">        } catch (SQLException e) {</span>
+<span class="fc" id="L88">            throw new DatabaseException(&quot;Database error occurred while processing 'incoming vehicle': &quot; + e.getMessage());</span>
+<span class="fc" id="L89">        }</span>
+        
+<span class="pc bpc" id="L91" title="1 of 2 branches missed.">        if (parkingSpot == null) {</span>
+<span class="nc" id="L92">            throw new ParkingSpotNotFoundException(&quot;No available parking spot for type: &quot; + parkingType);</span>
+        }
+
+<span class="fc" id="L95">        Ticket ticket = new Ticket();</span>
+<span class="fc" id="L96">        ticket.setVehicleRegNumber(vehicleRegNumber);</span>
+<span class="fc" id="L97">        ticket.setParkingSpot(parkingSpot);</span>
+<span class="fc" id="L98">        ticket.setInTime(LocalDateTime.now());</span>
+
+<span class="fc" id="L100">        boolean isTicketSaved = ticketDAO.saveTicket(ticket);</span>
+<span class="fc bfc" id="L101" title="All 2 branches covered.">        if (!isTicketSaved) {</span>
+<span class="fc" id="L102">            throw new TicketSaveException(&quot;Failed to save ticket for vehicle: &quot; + vehicleRegNumber);</span>
+        }
+
+<span class="fc" id="L105">        boolean isSpotUpdated = parkingSpotDAO.updateParking(parkingSpot, false);</span>
+<span class="fc bfc" id="L106" title="All 2 branches covered.">        if (!isSpotUpdated) {</span>
+<span class="fc" id="L107">            throw new ParkingSpotUpdateException(&quot;Unable to update parking spot availability for parking spot ID: &quot; + parkingSpot.getId());</span>
+        }
+<span class="fc" id="L109">    }</span>
+    
+    /**
+     * Validates the vehicle registration number.
+     *
+     * @param vehicleRegNumber Vehicle registration number
+     * @throws IllegalArgumentException If the registration number is null, empty, or has an invalid length
+     */
+    public void validateVehicleRegistration(String vehicleRegNumber) {
+<span class="fc bfc" id="L118" title="All 4 branches covered.">        if (vehicleRegNumber == null || vehicleRegNumber.trim().isEmpty()) {</span>
+<span class="fc" id="L119">            throw new IllegalArgumentException(NULL_OR_EMPTY_REG_NUMBER_MSG);</span>
+        }
+        
+<span class="fc" id="L122">        String trimmedRegNumber = vehicleRegNumber.trim();</span>
+<span class="fc" id="L123">        int length = trimmedRegNumber.length();</span>
+        
+<span class="fc bfc" id="L125" title="All 4 branches covered.">        if (length &lt; MIN_REG_NUMBER_LENGTH || length &gt; MAX_REG_NUMBER_LENGTH) {</span>
+<span class="fc" id="L126">            throw new IllegalArgumentException(INVALID_REG_NUMBER_LENGTH_MSG);</span>
+        }
+<span class="fc" id="L128">    }</span>
+
+    /**
+     * Validates the parking type.
+     *
+     * @param parkingType The parking type to validate
+     * @throws IllegalArgumentException If the parking type is null
+     */
+    private void validateParkingType(ParkingType parkingType) {
+<span class="fc bfc" id="L137" title="All 2 branches covered.">        if (parkingType == null) {</span>
+<span class="fc" id="L138">            throw new IllegalArgumentException(PARKING_TYPE_NULL_MSG);</span>
+        }
+<span class="fc" id="L140">    }</span>
+
+    /**
+     * Creates a new ticket for a vehicle in a parking spot.
+     *
+     * @param vehicleRegNumber Vehicle registration number
+     * @param parkingSpot The parking spot where the vehicle is parked
+     * @return A new Ticket object
+     */
+    public Ticket createNewTicket(String vehicleRegNumber, ParkingSpot parkingSpot) {
+<span class="fc" id="L150">        Ticket ticket = new Ticket();</span>
+<span class="fc" id="L151">        ticket.setVehicleRegNumber(vehicleRegNumber);</span>
+<span class="fc" id="L152">        ticket.setParkingSpot(parkingSpot);</span>
+<span class="fc" id="L153">        ticket.setInTime(LocalDateTime.now());</span>
+<span class="fc" id="L154">        return ticket;</span>
+    }
+
+    /**
+     * Processes an exiting vehicle by updating the ticket and parking spot.
+     *
+     * @param vehicleRegNumber Vehicle registration number
+     * @throws Exception If there is an error during processing
+     */
+    public void processExitingVehicle(String vehicleRegNumber) throws Exception {
+<span class="fc" id="L164">        System.out.println(&quot;Processing exit for vehicle: &quot; + vehicleRegNumber);</span>
+        
+<span class="fc" id="L166">        Ticket ticket = ticketDAO.getTicket(vehicleRegNumber);</span>
+<span class="fc bfc" id="L167" title="All 2 branches covered.">        if (ticket == null) {</span>
+<span class="fc" id="L168">            throw new TicketNotFoundException(TICKET_NOT_FOUND_MSG + vehicleRegNumber);</span>
+        }
+
+<span class="pc bpc" id="L171" title="1 of 2 branches missed.">        if (ticket.getInTime() == null) {</span>
+<span class="nc" id="L172">            throw new IllegalArgumentException(&quot;Entry time is not set for ticket ID: &quot; + ticket.getId());</span>
+        }
+
+<span class="fc" id="L175">        LocalDateTime currentTime = LocalDateTime.now();</span>
+<span class="pc bpc" id="L176" title="1 of 2 branches missed.">        LocalDateTime exitTime = currentTime.isBefore(ticket.getInTime()) </span>
+<span class="nc" id="L177">                                  ? ticket.getInTime().plusMinutes(1) </span>
+<span class="fc" id="L178">                                  : currentTime;</span>
+
+<span class="fc" id="L180">        ticket.setOutTime(exitTime);</span>
+<span class="fc" id="L181">        System.out.println(&quot;Exit time set to: &quot; + ticket.getOutTime());</span>
+
+<span class="pc bpc" id="L183" title="1 of 2 branches missed.">        if (ticket.getOutTime().isBefore(ticket.getInTime())) {</span>
+<span class="nc" id="L184">            throw new IllegalArgumentException(&quot;Exit time must be after entry time for ticket ID: &quot; + ticket.getId());</span>
+        }
+
+        try {
+<span class="fc" id="L188">            double fare = fareCalculatorService.calculateFare(ticket, false); </span>
+<span class="fc" id="L189">            ticket.setPrice(fare);</span>
+<span class="fc" id="L190">            System.out.println(&quot;Fare calculated: &quot; + fare);</span>
+<span class="fc" id="L191">        } catch (Exception e) {</span>
+<span class="fc" id="L192">            throw FareCalculationException.createWithTicketId(ticket.getId(), e);</span>
+<span class="fc" id="L193">        }</span>
+
+<span class="fc bfc" id="L195" title="All 2 branches covered.">        if (!ticketDAO.updateTicket(ticket)) {</span>
+<span class="fc" id="L196">            throw new TicketUpdateException(TICKET_UPDATE_ERROR_MSG + ticket.getId());</span>
+        }
+
+<span class="fc bfc" id="L199" title="All 2 branches covered.">        if (!parkingSpotDAO.updateParking(ticket.getParkingSpot(), true)) {</span>
+<span class="fc" id="L200">            throw new ParkingSpotUpdateException(PARKING_SPOT_UPDATE_ERROR_MSG + ticket.getParkingSpot().getId());</span>
+        }
+
+<span class="fc" id="L203">        System.out.println(&quot;Exit processed successfully for vehicle: &quot; + vehicleRegNumber);</span>
+<span class="fc" id="L204">    }</span>
+
+    /**
+     * Updates the ticket and the associated parking spot.
+     *
+     * @param ticket The ticket to update
+     * @param fare The calculated fare to set on the ticket
+     * @throws ClassNotFoundException If class not found
+     * @throws SQLException If there is an SQL error
+     * @throws ParkingSpotUpdateException If there is an error updating the parking spot
+     */
+    public void updateTicketAndParkingSpot(Ticket ticket, double fare) throws ClassNotFoundException, SQLException, ParkingSpotUpdateException {
+<span class="fc bfc" id="L216" title="All 2 branches covered.">        if (ticket == null) {</span>
+<span class="fc" id="L217">            throw new TicketUpdateException(&quot;Ticket cannot be null&quot;);</span>
+        }
+        
+<span class="fc" id="L220">        ticket.setPrice(fare);</span>
+
+<span class="fc bfc" id="L222" title="All 2 branches covered.">        if (!ticketDAO.updateTicket(ticket)) {</span>
+<span class="fc" id="L223">            throw new TicketUpdateException(TICKET_UPDATE_ERROR_MSG + ticket.getId());</span>
+        }
+
+<span class="fc" id="L226">        ParkingSpot parkingSpot = ticket.getParkingSpot();</span>
+<span class="fc bfc" id="L227" title="All 2 branches covered.">        if (parkingSpot != null) {</span>
+<span class="fc bfc" id="L228" title="All 2 branches covered.">            if (!parkingSpotDAO.updateParking(parkingSpot, true)) {</span>
+<span class="fc" id="L229">                throw new ParkingSpotUpdateException(&quot;Failed to update parking spot availability for spot ID: &quot; + parkingSpot.getId());</span>
+            }
+        } else {
+<span class="fc" id="L232">            throw new TicketUpdateException(PARKING_SPOT_MISSING_ERROR_MSG + ticket.getId());</span>
+        }
+<span class="fc" id="L234">    }</span>
+
+    /**
+     * Retrieves the next available parking spot of the given type.
+     *
+     * @param parkingType Type of parking spot
+     * @return The next available parking spot
+     * @throws ClassNotFoundException If class not found
+     * @throws DatabaseException If there is a database error
+     */
+    public ParkingSpot getNextParkingNumberIfAvailable(ParkingType parkingType) throws ClassNotFoundException, DatabaseException {
+<span class="fc" id="L245">        validateParkingType(parkingType);</span>
+
+        try {
+<span class="fc" id="L248">            return parkingSpotDAO.getNextAvailableSpot(parkingType);</span>
+<span class="fc" id="L249">        } catch (IllegalArgumentException e) {</span>
+<span class="fc" id="L250">            throw new IllegalArgumentException(&quot;Unknown parking type: &quot; + parkingType, e);</span>
+<span class="fc" id="L251">        } catch (SQLException e) {</span>
+<span class="fc" id="L252">            throw new DatabaseException(&quot;Database error: getting next parking number: &quot; + e.getMessage(), e);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

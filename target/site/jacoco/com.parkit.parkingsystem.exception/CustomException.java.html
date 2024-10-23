@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CustomException.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">parking-system</a> &gt; <a href="index.source.html" class="el_package">com.parkit.parkingsystem.exception</a> &gt; <span class="el_source">CustomException.java</span></div><h1>CustomException.java</h1><pre class="source lang-java linenums">package com.parkit.parkingsystem.exception;
+
+/**
+ * Utility class for custom exceptions in the parking system.
+ */
+<span class="nc" id="L6">public class CustomException {</span>
+
+    /**
+     * Exception thrown when a ticket fails to be saved.
+     */
+    public static class TicketSaveException extends Exception {
+        public TicketSaveException(String message) {
+<span class="fc" id="L13">            super(message);</span>
+<span class="fc" id="L14">        }</span>
+    }
+
+    /**
+     * Exception thrown when a requested ticket is not found.
+     */
+    public static class TicketNotFoundException extends RuntimeException {
+        public TicketNotFoundException(String message) {
+<span class="fc" id="L22">            super(message);</span>
+<span class="fc" id="L23">        }</span>
+    }
+
+    /**
+     * Exception thrown when updating a parking spot fails.
+     */
+    public static class ParkingSpotUpdateException extends Exception {
+        public ParkingSpotUpdateException(String message) {
+<span class="fc" id="L31">            super(message);</span>
+<span class="fc" id="L32">        }</span>
+    }
+
+    /**
+     * Exception thrown when updating a ticket fails.
+     */
+    public static class TicketUpdateException extends RuntimeException {
+        public TicketUpdateException(String message) {
+<span class="fc" id="L40">            super(message);</span>
+<span class="fc" id="L41">        }</span>
+        public TicketUpdateException(String message, Throwable cause) {
+<span class="nc" id="L43">            super(message, cause);</span>
+<span class="nc" id="L44">        }</span>
+    }
+
+    /**
+     * Exception thrown when fare calculation fails.
+     */
+    public static class FareCalculationException extends RuntimeException {
+        public FareCalculationException(String message, Throwable cause) {
+<span class="fc" id="L52">            super(message, cause);</span>
+<span class="fc" id="L53">        }</span>
+
+        /**
+         * Factory method to create an exception with a ticket ID.
+         *
+         * @param ticketId The ID of the ticket related to the error.
+         * @param cause    The underlying cause of the error.
+         * @return A new instance of FareCalculationException with a detailed message.
+         */
+        public static FareCalculationException createWithTicketId(int ticketId, Throwable cause) {
+<span class="fc" id="L63">            return new FareCalculationException(&quot;Unable to calculate fare for ticket ID: &quot; + ticketId, cause);</span>
+        }
+    }
+
+    /**
+     * Exception thrown when a database operation fails.
+     */
+    public static class DatabaseException extends Exception {
+        public DatabaseException(String message) {
+<span class="fc" id="L72">            super(message);</span>
+<span class="fc" id="L73">        }</span>
+
+        public DatabaseException(String message, Throwable cause) {
+<span class="fc" id="L76">            super(message, cause);</span>
+<span class="fc" id="L77">        }</span>
+    }
+    
+    /**
+     * Exception thrown when a requested parking spot is not found.
+     */
+    public static class ParkingSpotNotFoundException extends RuntimeException {
+        public ParkingSpotNotFoundException(String message) {
+<span class="nc" id="L85">            super(message);</span>
+<span class="nc" id="L86">        }</span>
+    }
+    
+    /**
+     * Exception thrown when there are no available parking spots.
+     */
+    public static class NoAvailableParkingSpotException extends Exception {
+        public NoAvailableParkingSpotException(String message) {
+<span class="nc" id="L94">            super(message);</span>
+<span class="nc" id="L95">        }</span>
+    }
+
+    public static class InvalidTicketException extends RuntimeException {
+        public InvalidTicketException(String message) {
+<span class="fc" id="L100">            super(message);</span>
+<span class="fc" id="L101">        }</span>
+    }
+
+    public static class OutTimeBeforeInTimeException extends RuntimeException {
+        public OutTimeBeforeInTimeException(String message) {
+<span class="fc" id="L106">            super(message);</span>
+<span class="fc" id="L107">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

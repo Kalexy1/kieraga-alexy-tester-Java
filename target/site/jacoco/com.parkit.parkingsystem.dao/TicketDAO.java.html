@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TicketDAO.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">parking-system</a> &gt; <a href="index.source.html" class="el_package">com.parkit.parkingsystem.dao</a> &gt; <span class="el_source">TicketDAO.java</span></div><h1>TicketDAO.java</h1><pre class="source lang-java linenums">package com.parkit.parkingsystem.dao;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.parkit.parkingsystem.config.DataBaseConfig;
+import com.parkit.parkingsystem.constants.DBConstants;
+import com.parkit.parkingsystem.constants.ParkingType;
+import com.parkit.parkingsystem.model.ParkingSpot;
+import com.parkit.parkingsystem.model.Ticket;
+
+public class TicketDAO {
+
+<span class="fc" id="L20">    private static final Logger logger = LogManager.getLogger(TicketDAO.class);</span>
+    private DataBaseConfig dataBaseConfig;
+
+<span class="fc" id="L23">    public TicketDAO(DataBaseConfig dataBaseConfig) {</span>
+<span class="fc" id="L24">        this.dataBaseConfig = dataBaseConfig;</span>
+<span class="fc" id="L25">    }</span>
+
+    /**
+     * Saves a ticket to the database.
+     *
+     * @param ticket The ticket to save
+     * @return True if the ticket was successfully saved, false otherwise
+     * @throws SQLException If an SQL error occurs
+     * @throws ClassNotFoundException If the database driver class is not found
+     */
+    public boolean saveTicket(Ticket ticket) throws SQLException, ClassNotFoundException {
+<span class="fc bfc" id="L36" title="All 6 branches covered.">        if (ticket == null || ticket.getParkingSpot() == null || ticket.getVehicleRegNumber() == null) {</span>
+<span class="fc" id="L37">            logger.error(&quot;Ticket or required fields are null. Cannot save ticket.&quot;);</span>
+<span class="fc" id="L38">            return false;</span>
+        }
+
+<span class="fc" id="L41">        try (Connection con = dataBaseConfig.getConnection(); </span>
+<span class="fc" id="L42">             PreparedStatement ps = con.prepareStatement(DBConstants.SAVE_TICKET)) {</span>
+            
+<span class="fc" id="L44">            con.setAutoCommit(false);</span>
+            
+<span class="fc" id="L46">            ps.setInt(1, ticket.getParkingSpot().getId());</span>
+<span class="fc" id="L47">            ps.setString(2, ticket.getVehicleRegNumber());</span>
+<span class="fc" id="L48">            ps.setDouble(3, ticket.getPrice());</span>
+<span class="fc" id="L49">            ps.setTimestamp(4, Timestamp.valueOf(ticket.getInTime()));</span>
+<span class="fc bfc" id="L50" title="All 2 branches covered.">            ps.setTimestamp(5, ticket.getOutTime() != null ? Timestamp.valueOf(ticket.getOutTime()) : null);</span>
+
+<span class="fc" id="L52">            int rowsAffected = ps.executeUpdate();</span>
+            
+<span class="pc bpc" id="L54" title="1 of 2 branches missed.">            if (rowsAffected &gt; 0) {</span>
+<span class="fc" id="L55">                con.commit();</span>
+<span class="fc" id="L56">                logger.info(&quot;Ticket saved successfully for vehicle registration number '{}'.&quot;, ticket.getVehicleRegNumber());</span>
+<span class="fc" id="L57">                return true;</span>
+            } else {
+<span class="nc" id="L59">                con.rollback();</span>
+<span class="nc" id="L60">                logger.warn(&quot;No rows affected while saving ticket for vehicle registration number '{}'.&quot;, ticket.getVehicleRegNumber());</span>
+<span class="nc" id="L61">                return false;</span>
+            }
+
+<span class="pc bpc" id="L64" title="2 of 4 branches missed.">        } catch (SQLException ex) {</span>
+<span class="fc" id="L65">            logger.error(&quot;SQL error saving ticket for vehicle registration number '{}': {}&quot;, ticket.getVehicleRegNumber(), ex.getMessage(), ex);</span>
+<span class="fc" id="L66">            throw ex;</span>
+        }
+    }
+
+    /**
+     * Retrieves a ticket based on the vehicle registration number.
+     *
+     * @param vehicleRegNumber The vehicle registration number
+     * @return The ticket if found, null otherwise
+     * @throws SQLException If an SQL error occurs
+     * @throws ClassNotFoundException If the database driver class is not found
+     */
+    public Ticket getTicket(String vehicleRegNumber) throws SQLException, ClassNotFoundException {
+<span class="fc bfc" id="L79" title="All 4 branches covered.">        if (vehicleRegNumber == null || vehicleRegNumber.trim().isEmpty()) {</span>
+<span class="fc" id="L80">            logger.error(&quot;Vehicle registration number is null or empty.&quot;);</span>
+<span class="fc" id="L81">            return null;</span>
+        }
+
+<span class="fc" id="L84">        String sql = DBConstants.GET_TICKET;</span>
+<span class="fc" id="L85">        Ticket ticket = null;</span>
+
+<span class="fc" id="L87">        try (Connection con = dataBaseConfig.getConnection();</span>
+<span class="fc" id="L88">             PreparedStatement ps = con.prepareStatement(sql)) {</span>
+
+<span class="fc" id="L90">            ps.setString(1, vehicleRegNumber);</span>
+
+<span class="fc" id="L92">            try (ResultSet rs = ps.executeQuery()) {</span>
+<span class="fc bfc" id="L93" title="All 2 branches covered.">                if (rs.next()) {</span>
+<span class="fc" id="L94">                    ParkingSpot parkingSpot = new ParkingSpot(</span>
+<span class="fc" id="L95">                        rs.getInt(&quot;PARKING_NUMBER&quot;),</span>
+<span class="fc" id="L96">                        ParkingType.valueOf(rs.getString(&quot;TYPE&quot;)),</span>
+<span class="fc" id="L97">                        rs.getBoolean(&quot;AVAILABLE&quot;)</span>
+                    );
+<span class="fc" id="L99">                    ticket = new Ticket();</span>
+<span class="fc" id="L100">                    ticket.setParkingSpot(parkingSpot);</span>
+<span class="fc" id="L101">                    ticket.setId(rs.getInt(&quot;ID&quot;));</span>
+<span class="fc" id="L102">                    ticket.setVehicleRegNumber(vehicleRegNumber);</span>
+<span class="fc" id="L103">                    ticket.setPrice(rs.getDouble(&quot;PRICE&quot;));</span>
+<span class="fc" id="L104">                    ticket.setInTime(rs.getTimestamp(&quot;IN_TIME&quot;).toLocalDateTime());</span>
+
+<span class="fc" id="L106">                    Timestamp outTime = rs.getTimestamp(&quot;OUT_TIME&quot;);</span>
+<span class="fc bfc" id="L107" title="All 2 branches covered.">                    ticket.setOutTime(outTime != null ? outTime.toLocalDateTime() : null);</span>
+                }
+            }
+
+<span class="fc" id="L111">        } catch (SQLException ex) {</span>
+<span class="fc" id="L112">            logger.error(&quot;SQL error fetching ticket for vehicle registration number '{}': {}&quot;, vehicleRegNumber, ex.getMessage(), ex);</span>
+<span class="fc" id="L113">            throw ex;</span>
+<span class="fc" id="L114">        }</span>
+
+<span class="fc bfc" id="L116" title="All 2 branches covered.">        if (ticket == null) {</span>
+<span class="fc" id="L117">            logger.warn(&quot;No ticket found for vehicle registration number '{}'&quot;, vehicleRegNumber);</span>
+        }
+
+<span class="fc" id="L120">        return ticket;</span>
+    }
+
+    /**
+     * Updates a ticket in the database.
+     *
+     * @param ticket The ticket to update
+     * @return True if the ticket was successfully updated, false otherwise
+     * @throws SQLException If an SQL error occurs
+     * @throws ClassNotFoundException If the database driver class is not found
+     */
+    public boolean updateTicket(Ticket ticket) throws SQLException, ClassNotFoundException {
+<span class="fc bfc" id="L132" title="All 4 branches covered.">        if (ticket == null || ticket.getId() &lt;= 0) {</span>
+<span class="fc" id="L133">            return false;</span>
+        }
+
+<span class="fc" id="L136">        try (Connection connection = dataBaseConfig.getConnection();</span>
+<span class="fc" id="L137">             PreparedStatement preparedStatement = connection.prepareStatement(DBConstants.UPDATE_TICKET)) {</span>
+<span class="fc" id="L138">            preparedStatement.setDouble(1, ticket.getPrice());</span>
+<span class="fc bfc" id="L139" title="All 2 branches covered.">            if (ticket.getOutTime() != null) {</span>
+<span class="fc" id="L140">                preparedStatement.setObject(2, ticket.getOutTime());</span>
+            } else {
+<span class="fc" id="L142">                preparedStatement.setNull(2, java.sql.Types.TIMESTAMP);</span>
+            }
+<span class="fc" id="L144">            preparedStatement.setInt(3, ticket.getId());</span>
+
+<span class="fc" id="L146">            logger.debug(&quot;Updating ticket with ID: &quot; + ticket.getId() + &quot;, Price: &quot; + ticket.getPrice() + &quot;, OutTime: &quot; + ticket.getOutTime());</span>
+
+<span class="fc" id="L148">            int updateCount = preparedStatement.executeUpdate();</span>
+
+<span class="fc" id="L150">            logger.debug(&quot;Update count: &quot; + updateCount);</span>
+
+<span class="pc bpc" id="L152" title="1 of 2 branches missed.">            if (updateCount == 0) {</span>
+<span class="nc" id="L153">                logger.warn(&quot;No rows updated. Ticket ID may be invalid: &quot; + ticket.getId());</span>
+            }
+
+<span class="pc bpc" id="L156" title="1 of 2 branches missed.">            return updateCount &gt; 0;</span>
+
+<span class="fc" id="L158">        } catch (SQLException e) {</span>
+<span class="fc" id="L159">            logger.error(&quot;SQL error updating ticket with ID '&quot; + ticket.getId() + &quot;': &quot; + e.getMessage(), e);</span>
+<span class="fc" id="L160">            throw e; </span>
+        }
+    }
+
+    /**
+     * Deletes all tickets from the database.
+     *
+     * @throws ClassNotFoundException If the database driver class is not found
+     */
+    public void deleteAllTickets() throws ClassNotFoundException {
+<span class="fc" id="L170">        String deleteQuery = &quot;DELETE FROM TICKET&quot;;</span>
+<span class="fc" id="L171">        try (Connection con = dataBaseConfig.getConnection();</span>
+<span class="fc" id="L172">             PreparedStatement ps = con.prepareStatement(deleteQuery)) {</span>
+            
+<span class="fc" id="L174">            ps.executeUpdate();</span>
+<span class="fc" id="L175">        } catch (SQLException e) {</span>
+<span class="fc" id="L176">            logger.error(&quot;SQL error deleting all tickets: {}&quot;, e.getMessage(), e);</span>
+<span class="fc" id="L177">        }</span>
+<span class="fc" id="L178">    }</span>
+
+    /**
+     * Counts the number of tickets for a given vehicle registration number.
+     *
+     * @param vehicleRegNumber The vehicle registration number
+     * @return The number of tickets
+     * @throws SQLException If an SQL error occurs
+     * @throws ClassNotFoundException If the database driver class is not found
+     */
+    public int getNbTicket(String vehicleRegNumber) throws SQLException, ClassNotFoundException {
+<span class="fc bfc" id="L189" title="All 4 branches covered.">        if (vehicleRegNumber == null || vehicleRegNumber.trim().isEmpty()) {</span>
+<span class="fc" id="L190">            logger.error(&quot;Vehicle registration number is null or empty.&quot;);</span>
+<span class="fc" id="L191">            return 0;</span>
+        }
+
+<span class="fc" id="L194">        String sql = DBConstants.COUNT_TICKETS_FOR_VEHICLE;</span>
+<span class="fc" id="L195">        int count = 0;</span>
+<span class="fc" id="L196">        try (Connection con = dataBaseConfig.getConnection();</span>
+<span class="fc" id="L197">             PreparedStatement ps = con.prepareStatement(sql)) {</span>
+
+<span class="fc" id="L199">            ps.setString(1, vehicleRegNumber);</span>
+<span class="fc" id="L200">            try (ResultSet rs = ps.executeQuery()) {</span>
+<span class="pc bpc" id="L201" title="1 of 2 branches missed.">                if (rs.next()) {</span>
+<span class="fc" id="L202">                    count = rs.getInt(1);</span>
+                }
+            }
+
+<span class="fc" id="L206">        } catch (SQLException ex) {</span>
+<span class="fc" id="L207">            logger.error(&quot;SQL error counting tickets for vehicle registration number '{}': {}&quot;, vehicleRegNumber, ex.getMessage(), ex);</span>
+<span class="fc" id="L208">            throw ex;  </span>
+<span class="fc" id="L209">        }</span>
+<span class="fc" id="L210">        return count;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

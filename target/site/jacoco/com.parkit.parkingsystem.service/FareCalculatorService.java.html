@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="fr"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FareCalculatorService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">parking-system</a> &gt; <a href="index.source.html" class="el_package">com.parkit.parkingsystem.service</a> &gt; <span class="el_source">FareCalculatorService.java</span></div><h1>FareCalculatorService.java</h1><pre class="source lang-java linenums">package com.parkit.parkingsystem.service;
+
+import java.time.Duration;
+import java.time.LocalDateTime;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.parkit.parkingsystem.constants.ParkingType;
+import com.parkit.parkingsystem.exception.CustomException.InvalidTicketException;
+import com.parkit.parkingsystem.exception.CustomException.OutTimeBeforeInTimeException;
+import com.parkit.parkingsystem.model.Ticket;
+
+/**
+ * Service for calculating parking fares.
+ */
+<span class="fc" id="L17">public class FareCalculatorService {</span>
+
+<span class="fc" id="L19">    private static final Logger logger = LogManager.getLogger(FareCalculatorService.class);</span>
+
+    private static final double CAR_RATE_PER_HOUR = 1.0;
+    private static final double BIKE_RATE_PER_HOUR = 0.5;
+    private static final double DISCOUNT_RATE = 0.95;
+    private static final long FREE_PARKING_DURATION_IN_MINUTES = 30;
+
+<span class="fc" id="L26">    private java.time.Clock clock = java.time.Clock.systemDefaultZone();</span>
+
+    /**
+     * Calculates the parking fare based on the ticket information and user status.
+     *
+     * @param ticket The ticket containing parking information.
+     * @param discount Indicates if the user is eligible for a discount.
+     * @return The calculated fare.
+     * @throws IllegalArgumentException If in-time or out-time is invalid.
+     */
+    public double calculateFare(Ticket ticket, boolean discount) {
+<span class="fc" id="L37">        validateTicket(ticket);</span>
+
+<span class="fc" id="L39">        long duration = Duration.between(ticket.getInTime(), ticket.getOutTime()).toMinutes();</span>
+<span class="fc bfc" id="L40" title="All 2 branches covered.">        if (duration &lt;= 0) {</span>
+<span class="fc" id="L41">            throw new IllegalArgumentException(&quot;Exit time must be after entry time.&quot;);</span>
+        }
+
+<span class="fc" id="L44">        double ratePerHour = getRatePerHour(ticket.getParkingSpot().getParkingType());</span>
+
+<span class="fc" id="L46">        double durationInHours = Math.max(0, (duration - FREE_PARKING_DURATION_IN_MINUTES) / 60.0);</span>
+<span class="fc" id="L47">        double fare = Math.ceil(durationInHours) * ratePerHour;</span>
+
+<span class="fc bfc" id="L49" title="All 2 branches covered.">        if (discount) {</span>
+<span class="fc" id="L50">            fare *= DISCOUNT_RATE;</span>
+        }
+
+<span class="fc" id="L53">        return fare;</span>
+    }
+
+    /**
+     * Validates the in-time and out-time of the ticket.
+     *
+     * @param ticket The ticket to validate.
+     * @throws InvalidTicketException If in-time or out-time is null or in-time is in the future.
+     * @throws OutTimeBeforeInTimeException If out-time is before in-time.
+     */
+    public void validateTicket(Ticket ticket) throws InvalidTicketException, OutTimeBeforeInTimeException {
+<span class="fc bfc" id="L64" title="All 4 branches covered.">        if (ticket.getInTime() == null || ticket.getOutTime() == null) {</span>
+<span class="fc" id="L65">            throw new InvalidTicketException(</span>
+<span class="fc" id="L66">                String.format(&quot;In-time or out-time is not set. In-time: %s, Out-time: %s&quot;,</span>
+<span class="fc" id="L67">                    ticket.getInTime(), ticket.getOutTime()));</span>
+        }
+
+<span class="fc bfc" id="L70" title="All 2 branches covered.">        if (ticket.getInTime().isAfter(LocalDateTime.now(clock))) {</span>
+<span class="fc" id="L71">            throw new InvalidTicketException(</span>
+<span class="fc" id="L72">                String.format(&quot;In-time is in the future: %s&quot;, ticket.getInTime()));</span>
+        }
+
+<span class="fc bfc" id="L75" title="All 2 branches covered.">        if (ticket.getInTime().isAfter(ticket.getOutTime())) {</span>
+<span class="fc" id="L76">            throw new OutTimeBeforeInTimeException(</span>
+<span class="fc" id="L77">                String.format(&quot;Out-time is before in-time. In-time: %s, Out-time: %s&quot;,</span>
+<span class="fc" id="L78">                    ticket.getInTime(), ticket.getOutTime()));</span>
+        }
+<span class="fc" id="L80">    }</span>
+
+    /**
+     * Gets the rate per hour based on the parking type.
+     *
+     * @param type The parking type.
+     * @return The rate per hour.
+     * @throws IllegalArgumentException If the parking type is unknown.
+     */
+    public double getRatePerHour(ParkingType type) {
+<span class="fc bfc" id="L90" title="All 2 branches covered.">        if (type == null) {</span>
+<span class="fc" id="L91">            String message = &quot;Unknown parking type: null&quot;;</span>
+<span class="fc" id="L92">            logger.error(message);</span>
+<span class="fc" id="L93">            throw new IllegalArgumentException(message);</span>
+        }
+
+<span class="pc bpc" id="L96" title="1 of 3 branches missed.">        switch (type) {</span>
+            case CAR:
+<span class="fc" id="L98">                return CAR_RATE_PER_HOUR;</span>
+            case BIKE:
+<span class="fc" id="L100">                return BIKE_RATE_PER_HOUR;</span>
+            default:
+<span class="nc" id="L102">                String message = &quot;Unknown parking type: &quot; + type;</span>
+<span class="nc" id="L103">                logger.error(message);</span>
+<span class="nc" id="L104">                throw new IllegalArgumentException(message);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
